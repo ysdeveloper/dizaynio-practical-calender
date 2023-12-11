@@ -25,7 +25,7 @@ const SlotTimeList = () => {
   }, []);
 
   // Function to convert seconds to HH:mm format with timezone adjustment
-  function convertSecondsToHoursAndMinutes(seconds, offset) {
+  function convertSecondsToHoursAndMinutes(seconds, offset, currdate) {
     const date = new Date(seconds * 1000); // Convert seconds to milliseconds
     // const adjustedDate = new Date(date.getTime() + offset * 1000); // Apply timezone offset
     const utcDate = new Date(
@@ -37,14 +37,19 @@ const SlotTimeList = () => {
     const hours = adjustedDate.getUTCHours();
     const minutes = adjustedDate.getUTCMinutes();
 
-    return `${hours.toString().padStart(2, "0")}:${minutes
-      .toString()
-      .padStart(2, "0")}`;
+    return {
+      day,
+      hoursandminute: `${hours.toString().padStart(2, "0")}:${minutes
+        .toString()
+        .padStart(2, "0")}`,
+    };
   }
 
   // Function to generate time slots with a specified interval and timezone offset
-  function generateTimeSlots(startTime, endTime, interval, offset) {
+  function generateTimeSlots(startTime, endTime, interval, offset, date) {
     const slots = [];
+    const nextSlots = [];
+
     let currentSlotStart = startTime;
     while (currentSlotStart < endTime) {
       const roundedStartTime =
@@ -54,34 +59,111 @@ const SlotTimeList = () => {
         roundedStartTime + interval
       );
 
-      slots.push({
-        start: convertSecondsToHoursAndMinutes(roundedStartTime, offset),
-        end: convertSecondsToHoursAndMinutes(roundedEndTime, offset),
-      });
+      if (
+        convertSecondsToHoursAndMinutes(roundedStartTime, offset, date)?.day ===
+        2
+      ) {
+        nextSlots.push({
+          start: convertSecondsToHoursAndMinutes(roundedStartTime, offset, date)
+            ?.hoursandminute,
+          end: convertSecondsToHoursAndMinutes(roundedEndTime, offset, date)
+            ?.hoursandminute,
+        });
+      } else {
+        slots.push({
+          start: convertSecondsToHoursAndMinutes(roundedStartTime, offset, date)
+            ?.hoursandminute,
+          end: convertSecondsToHoursAndMinutes(roundedEndTime, offset, date)
+            ?.hoursandminute,
+        });
+      }
 
       currentSlotStart = roundedEndTime;
     }
-    return slots;
+
+    return { slots, nextSlots };
   }
 
   // Process time slots data
   useEffect(() => {
+    // if (timeSlots) {
+    //   let updatedTimeSlots = [];
+    //   if (timeSlots[selectedDate]?.length > 0) {
+    //     updatedTimeSlots = timeSlots[selectedDate].map((slot) => ({
+    //       slots: generateTimeSlots(
+    //         slot.startTime,
+    //         slot.endTime,
+    //         intervalInSeconds,
+    //         TimeZone.value
+    //       ),
+    //     }));
+    //   }
+
+    //   setDisplayTimeSlots(updatedTimeSlots);
+    // }
     if (timeSlots) {
-      let updatedTimeSlots = [];
-      if (timeSlots[selectedDate]?.length > 0) {
-        updatedTimeSlots = timeSlots[selectedDate].map((slot) => ({
-          slots: generateTimeSlots(
-            slot.startTime,
-            slot.endTime,
-            intervalInSeconds,
-            TimeZone.value
-          ),
-        }));
-      }
+      const updatedTimeSlots = {};
+      Object.keys(timeSlots).forEach((date) => {
+        if (timeSlots[date].length > 0) {
+          if (updatedTimeSlots[date]?.length > 0) {
+            const newArr = timeSlots[date].map((slot) => {
+              const allTimeSlots = generateTimeSlots(
+                slot.startTime,
+                slot.endTime,
+                intervalInSeconds,
+                TimeZone.value,
+                date
+              );
+
+              if (allTimeSlots.nextSlots?.length > 0) {
+                const dateNumber = date?.slice(-2);
+                const nextDate = `2023-12-${(parseInt(dateNumber) + 1)
+                  .toString()
+                  .padStart(2, "0")}`;
+
+                updatedTimeSlots[nextDate] = [
+                  { slots: allTimeSlots.nextSlots },
+                ];
+
+                return { slots: allTimeSlots.slots };
+              } else {
+                return { slots: allTimeSlots.slots };
+              }
+            });
+
+            updatedTimeSlots[date] = [...updatedTimeSlots[date], ...newArr];
+          } else {
+            updatedTimeSlots[date] = timeSlots[date].map((slot) => {
+              const allTimeSlots = generateTimeSlots(
+                slot.startTime,
+                slot.endTime,
+                intervalInSeconds,
+                TimeZone.value,
+                date
+              );
+
+              if (allTimeSlots.nextSlots?.length > 0) {
+                const dateNumber = date?.slice(-2);
+                const nextDate = `2023-12-${(parseInt(dateNumber) + 1)
+                  .toString()
+                  .padStart(2, "0")}`;
+
+                updatedTimeSlots[nextDate] = [
+                  { slots: allTimeSlots.nextSlots },
+                ];
+
+                return { slots: allTimeSlots.slots };
+              } else {
+                return { slots: allTimeSlots.slots };
+              }
+            });
+          }
+        }
+      });
 
       setDisplayTimeSlots(updatedTimeSlots);
     }
-  }, [selectedDate, timeSlots, TimeZone]);
+  }, [timeSlots, TimeZone]);
 
   return (
     <div className="border-l border-solid pl-8">
@@ -93,8 +175,8 @@ const SlotTimeList = () => {
       </div>
 
       <ul className="flex flex-col gap-y-2 overflow-auto h-[600px]">
-        {displayTimeSlots &&
-          displayTimeSlots.map((daySlots, index) =>
+        {displayTimeSlots[selectedDate] &&
+          displayTimeSlots[selectedDate].map((daySlots, index) =>
             daySlots.slots.map((slot, idx) => (
               <li
                 key={idx}
