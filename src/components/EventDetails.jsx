@@ -25,6 +25,12 @@ const EventDetails = () => {
       .then(([timezonedata, eventDetailsData]) => {
         setTimeZoneOptions(timezonedata);
         setEventDetails(eventDetailsData.event);
+        setTimeZone({
+          code: eventDetailsData.event?.timezone?.code,
+          label: eventDetailsData.event?.timezone?.label,
+          offset: eventDetailsData.event?.timezone?.offset,
+          value: eventDetailsData.event?.timezone?.seconds,
+        });
       })
       .catch((error) => {
         console.error("Error:", error);

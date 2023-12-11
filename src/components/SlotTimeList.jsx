@@ -27,10 +27,16 @@ const SlotTimeList = () => {
   // Function to convert seconds to HH:mm format with timezone adjustment
   function convertSecondsToHoursAndMinutes(seconds, offset) {
     const date = new Date(seconds * 1000); // Convert seconds to milliseconds
-    const adjustedDate = new Date(date.getTime() + offset * 1000); // Apply timezone offset
+    // const adjustedDate = new Date(date.getTime() + offset * 1000); // Apply timezone offset
+    const utcDate = new Date(
+      date.getTime() + date.getTimezoneOffset() * 60 * 1000
+    ); // Convert to UTC
+    const adjustedDate = new Date(utcDate.getTime() + offset * 1000); // Apply timezone offset
 
+    const day = adjustedDate.getUTCDate();
     const hours = adjustedDate.getUTCHours();
     const minutes = adjustedDate.getUTCMinutes();
+
     return `${hours.toString().padStart(2, "0")}:${minutes
       .toString()
       .padStart(2, "0")}`;
